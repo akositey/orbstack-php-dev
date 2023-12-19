@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+
+  # --- Webserver: Nginx
+  nginx:
+    image: nginx:${NGINX_VER}
+    container_name: ${PROJECT_NAME}-nginx
+    platform: ${PLATFORM:-linux/amd64}
+    restart: unless-stopped
+    volumes:
+      - ./app:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    labels:
+      - dev.orbstack.domains=${PROJECT_NAME}.${DOCKER_BASE_URL}
+    depends_on:
+      - php-fpm
+    networks:
+      - app-network
+      - docker-network
+
+  # --- PHP container: Project files
+  php-fpm:
+    build:
+      context: .
+      dockerfile: docker/php-fpm/Dockerfile
+    platform: ${PLATFORM:-linux/amd64}
+    container_name: ${PROJECT_NAME}-php
+    restart: unless-stopped
+    working_dir: /var/www
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_LIMS_URL=${DATABASE_LIMS_URL}
+      - MAILER_DSN=${MAILER_DSN}
+      - XDEBUG_CLIENT_HOST=${XDEBUG_CLIENT_HOST}
+      - XDEBUG_CLIENT_PORT=${XDEBUG_CLIENT_PORT}
+    volumes:
+      - ./app:/var/www
+      - ./docker/php-fpm/php.ini:/usr/local/etc/php/conf.d/php.ini
+      - ./docker/php-fpm/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - ./docker/php-fpm/www.conf:/usr/local/etc/php-fpm.d/www.conf
+    networks:
+      - app-network
+      - docker-network
+
+  # --- Database: MariaDB
+  # removed, use existing local central db instance
+
+# --- Docker Networks
+networks:
+  app-network:
+    driver: bridge
+  docker-network:
+    name: ${DOCKER_NETWORK}
+    external: true
